@@ -444,19 +444,10 @@ public:
 				if (kind.isTree(id_enum))
 				{
 					Ident enum_name = kind.part(1).identName();
-					AbstractParseTreeCursor earlierDecl;
-					for (AbstractParseTreeIteratorCursor enumdeclIt(enumdeclsCursor); enumdeclIt.more(); enumdeclIt.next())
-					{
-						AbstractParseTreeCursor enumdecl = AbstractParseTreeCursor(enumdeclIt).part(1).part(1);
-						if (enumdecl.part(1).identName() == enum_name)
-						{
-							earlierDecl = enumdecl;
-							break;
-						}
-					}
+					AbstractParseTreeCursor earlierDecl = findMatchingP1P1(enumdeclsCursor, enum_name);
 					if (kind.part(2).part(1).isTree(id_elipses))
 					{
-						//printf("enum %s with elipses\n", enum_name.val());
+						printf("enum %s with elipses\n", enum_name.val());
 						if (!earlierDecl.attached())
 						{
 							printf("Error %d.%d: enum %s with elipses has no earlier definition\n",
@@ -469,8 +460,7 @@ public:
 							//printf("\nWith:    ");
 							//kind.print(stdout, true);
 							//printf("\n");
-							AbstractParseTreeCursor enumerators = AbstractParseTreeCursor(kind.part(2).part(2));
-							for (AbstractParseTreeIteratorCursor newIt(enumerators); newIt.more(); newIt.next())
+							for (AbstractParseTreeIteratorCursor newIt(kind.part(2).part(2)); newIt.more(); newIt.next())
 								earlierDecl.part(2).part(2).appendChild(AbstractParseTreeCursor(newIt));
 							//printf("Into:    ");
 							//earlierDecl.print(stdout, true);
@@ -496,7 +486,38 @@ public:
 				}
 				else if (kind.isTree(id_struct_d))
 				{
-					typedeclsCursor.appendChild(decl);
+					decl.print(stdout, false);
+					Ident struct_name = kind.part(1).identName();
+					AbstractParseTreeCursor earlierDecl = findMatchingP1P1(typedeclsCursor, struct_name);
+					if (kind.part(2).isTree(id_elipses))
+					{
+						printf("struct %s with elipses\n", struct_name.val());
+						if (!earlierDecl.attached())
+						{
+							printf("Error %d.%d: struct %s with elipses has no earlier definition\n",
+								kind.line(), kind.column(), struct_name.val());
+						}
+						else
+						{
+							printf("Combine:\n");
+							earlierDecl.print(stdout, false);
+							printf("\nWith:\n");
+							kind.print(stdout, false);
+							printf("\n");
+						}
+					}
+					else
+					{
+						if (earlierDecl.attached())
+						{
+							printf("Warning %d.%d: redefinition of struct %s from %d.%d\n",
+								kind.line(), kind.column(), struct_name.val(), earlierDecl.line(), earlierDecl.column());
+						}
+						else
+						{
+							typedeclsCursor.appendChild(decl);
+						}
+					}
 				}
 				else
 				{
@@ -509,6 +530,19 @@ public:
 			}
 		}
 	}
+private:
+	AbstractParseTreeCursor findMatchingP1P1(const AbstractParseTreeCursor& list, Ident name)
+	{
+		for (AbstractParseTreeIteratorCursor listIt(list); listIt.more(); listIt.next())
+		{
+			AbstractParseTreeCursor elem = AbstractParseTreeCursor(listIt).part(1).part(1);
+			if (elem.part(1).identName() == name)
+				return elem;
+		}
+		return AbstractParseTreeCursor();
+	}
+
+public:
 	
 	void print()
 	{
